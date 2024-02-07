@@ -215,7 +215,7 @@ $ make PROFILE=1
 ```
 Run your application
 ```
-$ ./build/posix_demo
+$ ./build/q1
 ```
 Since FreeRTOS and its application never come to an end and typically run
 forever.  The user has to kill the application with **Ctrl_C**  when they feel
@@ -256,6 +256,6 @@ $ make SANITIZE_LEAK=1
 ```
 Then run your program normally.
 ```
-$ ./build/posix_demo
+$ ./build/q1
 ```
 If an error is detected by the sanitizer, a report showing the error will be printed to stdout.

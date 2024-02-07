@@ -69,39 +69,16 @@
 /* Local includes. */
 #include "console.h"
 
-#if ( projCOVERAGE_TEST != 1 )
-    #include <trcRecorder.h>
-#endif
-
-#define    BLINKY_DEMO    0
-#define    FULL_DEMO      1
-
 #ifdef BUILD_DIR
     #define BUILD         BUILD_DIR
 #else
     #define BUILD         "./"
 #endif
 
-/* Demo type is passed as an argument */
-#ifdef USER_DEMO
-    #define     mainSELECTED_APPLICATION    USER_DEMO
-#else /* Default Setting */
-    #define    mainSELECTED_APPLICATION     FULL_DEMO
-#endif
-
 /* This demo uses heap_3.c (the libc provided malloc() and free()). */
 
 /*-----------------------------------------------------------*/
-extern void main_blinky( void );
-extern void main_full( void );
 static void traceOnEnter( void );
-
-/*
- * Only the comprehensive demo uses application hook (callback) functions.  See
- * https://www.FreeRTOS.org/a00016.html for more information.
- */
-void vFullDemoTickHookFunction( void );
-void vFullDemoIdleFunction( void );
 
 /*
  * Prototypes for the standard FreeRTOS application hook (callback) functions
@@ -131,6 +108,9 @@ static void prvSaveTraceFile( void );
  */
 static void handle_sigint( int signal );
 
+static void tarefa1Task( void * pvParameters );
+static void tarefa2Task( void * pvParameters );
+
 /*-----------------------------------------------------------*/
 
 /* When configSUPPORT_STATIC_ALLOCATION is set to 1 the application writer can
@@ -151,44 +131,62 @@ static clockid_t cid = CLOCK_THREAD_CPUTIME_ID;
 
 /*-----------------------------------------------------------*/
 
+/* Variável compartilhada */
+volatile float temperature_Celsius = 0.0;
+float temperature_Fahrenheit = 0.0;
+
+/* Mutex compartilhado  */
+SemaphoreHandle_t xSemaphore;
+
+/* Tarefa 1 */
+static void tarefa1Task( void * pvParameters ){
+    for(;;){
+        if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+        {
+            temperature_Celsius += 1.5;
+            console_print("Temperatura: %.3f ºC\n", temperature_Celsius);
+            xSemaphoreGive( xSemaphore );
+        }
+        else{
+            console_print("Failed to take semaphore from task 1");
+        }
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+}
+
+/* Tarefa 2 */
+static void tarefa2Task( void * pvParameters ){
+    for(;;){
+        if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+        {
+            temperature_Fahrenheit = (1.8 * temperature_Celsius) + 32;
+            console_print("Temperatura: %.3f ºF\n", temperature_Fahrenheit);
+            xSemaphoreGive( xSemaphore );
+        }
+        else{
+            console_print("Failed to take semaphore from task 2");
+        }
+        vTaskDelay(500/portTICK_PERIOD_MS);
+    }
+}
+
+
 int main( void )
 {
     /* SIGINT is not blocked by the posix port */
     signal( SIGINT, handle_sigint );
 
-    /* Do not include trace code when performing a code coverage analysis. */
-    #if ( projCOVERAGE_TEST != 1 )
-    {
-        /* Initialise the trace recorder.  Use of the trace recorder is optional.
-         * See http://www.FreeRTOS.org/trace for more information. */
-        vTraceEnable( TRC_START );
-
-        /* Start the trace recording - the recording is written to a file if
-         * configASSERT() is called. */
-        printf( "\r\nTrace started.\r\nThe trace will be dumped to disk if a call to configASSERT() fails.\r\n" );
-
-        #if ( TRACE_ON_ENTER == 1 )
-            printf( "\r\nThe trace will be dumped to disk if Enter is hit.\r\n" );
-        #endif
-    }
-    #endif /* if ( projCOVERAGE_TEST != 1 ) */
-
     console_init();
-    #if ( mainSELECTED_APPLICATION == BLINKY_DEMO )
-    {
-        console_print( "Starting echo blinky demo\n" );
-        main_blinky();
+
+    xSemaphore = xSemaphoreCreateMutex();
+    if(xSemaphore != NULL){
+        xTaskCreate( tarefa1Task, "Tarefa 1", configMINIMAL_STACK_SIZE, NULL, 5, NULL );
+        xTaskCreate( tarefa2Task, "Tarefa 2", configMINIMAL_STACK_SIZE, NULL, 5, NULL );
+        console_print( "Starting Application\n" );
     }
-    #elif ( mainSELECTED_APPLICATION == FULL_DEMO )
-    {
-       console_print( "Starting App\n" );
-       main_full();
+    else{
+        console_print( "Could not create the Semaphore\n");
     }
-    #else
-    {
-        #error "The selected demo is not valid"
-    }
-    #endif /* if ( mainSELECTED_APPLICATION ) */
 
     return 0;
 }
@@ -227,14 +225,6 @@ void vApplicationIdleHook( void )
 
     usleep( 15000 );
     traceOnEnter();
-
-    #if ( mainSELECTED_APPLICATION == FULL_DEMO )
-    {
-        /* Call the idle task processing used by the full demo.  The simple
-         * blinky demo does not use the idle task hook. */
-        vFullDemoIdleFunction();
-    }
-    #endif
 }
 /*-----------------------------------------------------------*/
 
@@ -260,12 +250,6 @@ void vApplicationTickHook( void )
     * added here, but the tick hook is called from an interrupt context, so
     * code must not attempt to block, and only the interrupt safe FreeRTOS API
     * functions can be used (those that end in FromISR()). */
-
-    #if ( mainSELECTED_APPLICATION == FULL_DEMO )
-    {
-        vFullDemoTickHookFunction();
-    }
-    #endif /* mainSELECTED_APPLICATION */
 }
 
 void traceOnEnter()
@@ -357,26 +341,6 @@ void vAssertCalled( const char * const pcFileName,
 static void prvSaveTraceFile( void )
 {
     /* Tracing is not used when code coverage analysis is being performed. */
-    #if ( projCOVERAGE_TEST != 1 )
-    {
-        FILE * pxOutputFile;
-
-        vTraceStop();
-
-        pxOutputFile = fopen( "Trace.dump", "wb" );
-
-        if( pxOutputFile != NULL )
-        {
-            fwrite( RecorderDataPtr, sizeof( RecorderDataType ), 1, pxOutputFile );
-            fclose( pxOutputFile );
-            printf( "\r\nTrace output saved to Trace.dump\r\n" );
-        }
-        else
-        {
-            printf( "\r\nFailed to create trace dump file\r\n" );
-        }
-    }
-    #endif /* if ( projCOVERAGE_TEST != 1 ) */
 }
 /*-----------------------------------------------------------*/
 
