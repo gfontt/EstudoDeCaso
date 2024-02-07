@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-st-nucleo-l031k6", "id": "nucleo", "top": 1.21, "left": 3.55, "attrs": {} },
+    { "type": "wokwi-led", "id": "led1", "top": 92.4, "left": -121, "attrs": { "color": "red" } },
+    { "type": "wokwi-led", "id": "led2", "top": 150, "left": -121, "attrs": { "color": "blue" } },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 186.35,
+      "left": -86.4,
+      "attrs": { "value": "330" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led3",
+      "top": 121.2,
+      "left": 128.6,
+      "attrs": { "color": "yellow" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 215.15,
+      "left": 48,
+      "attrs": { "value": "330" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 128.75,
+      "left": -86.4,
+      "attrs": { "value": "330" }
+    },
+    {
+      "type": "wokwi-ntc-temperature-sensor",
+      "id": "ntc1",
+      "top": -55,
+      "left": -192.6,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-slide-potentiometer",
+      "id": "pot1",
+      "top": -158.2,
+      "left": -10.6,
+      "attrs": { "travelLength": "30" }
+    }
+  ],
+  "connections": [
+    [ "$serialMonitor:TX", "nucleo:VCP_RX", "", [] ],
+    [ "$serialMonitor:RX", "nucleo:VCP_TX", "", [] ],
+    [ "led3:A", "r3:2", "green", [ "v0" ] ],
+    [ "led3:C", "nucleo:GND.2", "green", [ "h-47.6", "v-115.2", "h-50.95" ] ],
+    [ "r3:1", "nucleo:D12", "green", [ "v9.6", "h-57.6", "v-48" ] ],
+    [ "led2:A", "r2:1", "green", [ "v0" ] ],
+    [ "r2:2", "nucleo:D11", "green", [ "v0" ] ],
+    [ "led2:C", "led1:C", "green", [ "v9.6", "h-18.8", "v-67.2" ] ],
+    [ "led1:A", "r1:1", "green", [ "v0" ] ],
+    [ "r1:2", "nucleo:D10", "green", [ "h8.4", "v19.2" ] ],
+    [ "nucleo:GND.1", "led1:C", "black", [ "h-134.4", "v67.2" ] ],
+    [ "ntc1:GND", "nucleo:GND.1", "black", [ "h19.2", "v96" ] ],
+    [ "ntc1:VCC", "nucleo:VIN", "red", [ "h144", "v28.8", "h-18.6" ] ],
+    [ "ntc1:OUT", "nucleo:A0", "green", [ "h182.4", "v153.5" ] ],
+    [ "pot1:VCC", "nucleo:VIN", "red", [ "h-28.8", "v144" ] ],
+    [ "pot1:GND", "nucleo:GND.2", "black", [ "v0" ] ],
+    [ "pot1:SIG", "nucleo:A1", "green", [ "h172.8", "v172" ] ]
+  ],
+  "dependencies": {}
+}
